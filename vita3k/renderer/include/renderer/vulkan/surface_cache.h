@@ -210,6 +210,14 @@ public:
 
     Framebuffer &retrieve_framebuffer_handle(MemState &mem, SceGxmColorSurface *color, SceGxmDepthStencilSurface *depth_stencil,
         vk::RenderPass standard_render_pass, vk::RenderPass interlock_render_pass, vk::ImageView &color_view, vk::ImageView &ds_view);
+    
+    // Look up an existing framebuffer by its attachment views without creating a new one.
+    // Returns VK_NULL_HANDLE if not found.
+    vk::Framebuffer find_framebuffer_standard(vk::ImageView color_view, vk::ImageView ds_view) {
+        auto key = std::make_pair(color_view, ds_view);
+        auto it = framebuffer_array.find(key);
+        return (it != framebuffer_array.end()) ? it->second.standard : nullptr;
+    }
 
     // Check if the address is one of a used surface
     // If it is the case, this function returns true, moves the callback
