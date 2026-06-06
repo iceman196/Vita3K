@@ -315,7 +315,6 @@ static vk::DescriptorSet retrieve_color_descriptor(VKState &state, FrameDescript
 
     return frame_descriptor.sets[frame_descriptor.descriptors_idx++];
 }
-
 void VKContext::start_render_pass(bool create_descriptor_set) {
     if (in_renderpass) {
         LOG_ERROR("Starting render pass while already in render pass");
@@ -325,11 +324,21 @@ void VKContext::start_render_pass(bool create_descriptor_set) {
     if (!is_recording)
         start_recording();
 
+    // If the framebuffer was invalidated by surface cache eviction, try to recover it.
+    // This can happen during combat when depth-stencil or color surfaces are reallocated.
+    if (!current_framebuffer) {
+        current_framebuffer = state.surface_cache.find_framebuffer_standard(current_color_view, current_ds_view);
+        if (!current_framebuffer) {
+            LOG_WARN("start_render_pass: framebuffer was invalidated and could not be recovered, skipping draw");
+            return;
+        }
+        LOG_DEBUG("start_render_pass: recovered invalidated framebuffer");
+    }
+
     curr_renderpass_info = vk::RenderPassBeginInfo{
         .renderPass = current_render_pass,
         .framebuffer = current_framebuffer
     };
-
     if (render_target->has_macroblock_sync && !ignore_macroblock) {
         // set the render area to the correct macroblock
         curr_renderpass_info.renderArea = vk::Rect2D{
