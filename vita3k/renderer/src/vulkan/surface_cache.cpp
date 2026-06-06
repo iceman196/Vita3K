@@ -95,9 +95,16 @@ ColorSurfaceCacheInfo::~ColorSurfaceCacheInfo() {
 
 void VKSurfaceCache::destroy_framebuffers(vk::ImageView view) {
     vkutil::DestroyQueue &destroy_queue = state.frame().destroy_queue;
+    VKContext *context = reinterpret_cast<VKContext *>(state.context);
     for (auto it = framebuffer_array.begin(); it != framebuffer_array.end();) {
         // if the color of depth-stencil match the one of the render_target, this won't be used anymore
         if (it->first.first == view || it->first.second == view) {
+            // if this framebuffer is the one currently set in the context, invalidate it
+            // so start_render_pass can detect and recover instead of crashing
+            if (context && context->current_framebuffer == it->second.standard) {
+                context->current_framebuffer = nullptr;
+                context->current_shader_interlock_framebuffer = nullptr;
+            }
             destroy_queue.add(it->second.standard);
             destroy_queue.add(it->second.shader_interlock);
             it = framebuffer_array.erase(it);
